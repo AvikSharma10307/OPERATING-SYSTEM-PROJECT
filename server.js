@@ -28,61 +28,54 @@ app.post('/api/vfs/switch', (req, res) => {
 });
 
 // List items
-app.get('/api/vfs/list', async (req, res) => {
+app.get('/api/vfs/list', (req, res) => {
     const path = req.query.path || '/';
-    const result = await vfs.listItems(path);
-    res.json(result);
-});
-
-// Stat item
-app.get('/api/vfs/stat', async (req, res) => {
-    const path = req.query.path;
-    const result = await vfs.statItem(path);
+    const result = vfs.listItems(path);
     res.json(result);
 });
 
 // Create file or folder
-app.post('/api/vfs/create', async (req, res) => {
+app.post('/api/vfs/create', (req, res) => {
     const { path, type } = req.body;
     let result;
     if (type === 'folder') {
-        result = await vfs.createFolder(path);
+        result = vfs.createFolder(path);
     } else {
-        result = await vfs.createFile(path);
+        result = vfs.createFile(path);
     }
     res.json(result);
 });
 
 // Delete file or folder
-app.delete('/api/vfs/delete', async (req, res) => {
+app.delete('/api/vfs/delete', (req, res) => {
     const { path, type } = req.body;
     let result;
     if (type === 'folder') {
-        result = await vfs.deleteFolder(path);
+        result = vfs.deleteFolder(path);
     } else {
-        result = await vfs.deleteFile(path);
+        result = vfs.deleteFile(path);
     }
     res.json(result);
 });
 
 // Read file
-app.get('/api/vfs/read', async (req, res) => {
+app.get('/api/vfs/read', (req, res) => {
     const path = req.query.path;
-    const result = await vfs.readFile(path);
+    const result = vfs.readFile(path);
     res.json(result);
 });
 
 // Write file
-app.post('/api/vfs/write', async (req, res) => {
+app.post('/api/vfs/write', (req, res) => {
     const { path, data } = req.body;
-    const result = await vfs.writeFile(path, data);
+    const result = vfs.writeFile(path, data);
     res.json(result);
 });
 
 // Rename file
-app.put('/api/vfs/rename', async (req, res) => {
+app.put('/api/vfs/rename', (req, res) => {
     const { path, newName } = req.body;
-    const result = await vfs.renameFile(path, newName);
+    const result = vfs.renameFile(path, newName);
     res.json(result);
 });
 

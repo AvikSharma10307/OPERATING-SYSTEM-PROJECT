@@ -513,7 +513,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     printToTerminal('  write <file> <data> - Write text to file');
                     printToTerminal('  rm <name>        - Delete file or folder');
                     printToTerminal('  rename <old> <new> - Rename an item');
-                    printToTerminal('  stat <name>      - View file metadata & blocks');
                     printToTerminal('  switch <fs>      - Switch FS (fat32, ntfs, ext4)');
                     printToTerminal('  clear            - Clear terminal screen');
                     break;
@@ -603,25 +602,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const oldPath = currentPath === '/' ? `/${arg1}` : `${currentPath}/${arg1}`;
                     const renRes = await fetchAPI('/rename', 'PUT', { path: oldPath, newName: parts[2] });
                     printToTerminal(renRes.success ? renRes.message : renRes.error, renRes.success ? 'success' : 'error');
-                    break;
-
-                case 'stat':
-                    if (!arg1) { printToTerminal('Usage: stat <name>', 'error'); break; }
-                    const statPath = currentPath === '/' ? `/${arg1}` : `${currentPath}/${arg1}`;
-                    const statRes = await fetchAPI(`/stat?path=${encodeURIComponent(statPath)}`);
-                    if (statRes.success) {
-                        const item = statRes.item;
-                        printToTerminal(`File: ${item.name}`);
-                        printToTerminal(`Type: ${item.type}`);
-                        printToTerminal(`Size: ${item.size} bytes`);
-                        printToTerminal(`Created: ${new Date(item.createdAt).toLocaleString()}`);
-                        if (item.type === 'file') {
-                            const blockStr = item.blocks && item.blocks.length > 0 ? item.blocks.join(', ') : 'None';
-                            printToTerminal(`Blocks Allocated: [${blockStr}]`, 'success');
-                        }
-                    } else {
-                        printToTerminal(`stat: ${statRes.error}`, 'error');
-                    }
                     break;
 
                 default:
@@ -1176,22 +1156,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.classList.add('removing');
             setTimeout(() => toast.remove(), 350);
         }, 3500);
-    }
-
-    // Toggle File System Comparison Panel
-    const btnToggleComparison = document.getElementById('btnToggleComparison');
-    const fsComparisonPanel = document.getElementById('fsComparisonPanel');
-    if (btnToggleComparison && fsComparisonPanel) {
-        btnToggleComparison.addEventListener('click', () => {
-            fsComparisonPanel.classList.toggle('panel-hidden');
-            const isHidden = fsComparisonPanel.classList.contains('panel-hidden');
-            if (isHidden) {
-                btnToggleComparison.innerHTML = '<i class="fa-solid fa-code-compare"></i> Compare File Systems';
-            } else {
-                btnToggleComparison.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Hide Comparison';
-                fsComparisonPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        });
     }
 
     // Reset Simulator
