@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Main application entry point
     // API Configuration
     const API_BASE = 'http://localhost:3000/api/vfs';
 
@@ -64,8 +65,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initApp() {
         await fetchStatus();
+        await populateSampleData();
         await fetchLogs();
-        if(currentPath === '/') refreshExplorer();
+        await refreshExplorer();
+        await updateDashboardStats();
+    }
+
+    // Populate sample files/folders if the root is empty (first-run experience)
+    async function populateSampleData() {
+        const res = await fetchAPI('/list?path=/');
+        if (res.success && res.items.length === 0) {
+            // Create sample folders
+            await fetchAPI('/create', 'POST', { path: '/Documents', type: 'folder' });
+            await fetchAPI('/create', 'POST', { path: '/Projects', type: 'folder' });
+            await fetchAPI('/create', 'POST', { path: '/System', type: 'folder' });
+            // Create sample files
+            await fetchAPI('/create', 'POST', { path: '/readme.txt', type: 'file' });
+            await fetchAPI('/write', 'POST', { path: '/readme.txt', data: 'Welcome to VFS Simulator! This is a virtual file system demo.' });
+            await fetchAPI('/create', 'POST', { path: '/Documents/notes.txt', type: 'file' });
+            await fetchAPI('/write', 'POST', { path: '/Documents/notes.txt', data: 'Sample notes file for testing read/write operations.' });
+            await fetchAPI('/create', 'POST', { path: '/Projects/config.json', type: 'file' });
+            await fetchAPI('/write', 'POST', { path: '/Projects/config.json', data: '{"name": "VFS Simulator", "version": "1.0.0"}' });
+            await fetchAPI('/create', 'POST', { path: '/System/kernel.log', type: 'file' });
+            await fetchAPI('/write', 'POST', { path: '/System/kernel.log', data: 'System boot sequence initialized. All modules loaded.' });
+        }
+    }
+
+    // Central function to update dashboard stats from backend
+    async function updateDashboardStats() {
+        const res = await fetchAPI('/list?path=/');
+        if (res.success) {
+            dashTotalFiles.innerText = res.items.length;
+        }
     }
 
     async function fetchAPI(endpoint, method = 'GET', body = null) {
@@ -104,14 +135,22 @@ document.addEventListener('DOMContentLoaded', () => {
             navItems.forEach(nav => nav.classList.remove('active'));
             item.classList.add('active');
             
-            views.forEach(v => v.classList.remove('active'));
+            // Hide all views, then show the target
+            views.forEach(v => {
+                v.classList.remove('active');
+                v.classList.add('hidden');
+            });
             const viewEl = document.getElementById(`${targetView}View`);
-            if (viewEl) viewEl.classList.add('active');
+            if (viewEl) {
+                viewEl.classList.remove('hidden');
+                viewEl.classList.add('active');
+            }
             
             if (targetView === 'explorer') refreshExplorer();
             if (targetView === 'dashboard') {
                 fetchStatus();
                 fetchLogs();
+                updateDashboardStats();
             }
         });
     });
@@ -125,8 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
             currentPath = '/';
             refreshExplorer();
             fetchLogs();
+            updateDashboardStats();
+            showToast('success', `Switched to ${type} file system`);
         } else {
-            alert(res.error);
+            showToast('error', res.error || 'Failed to switch file system');
         }
     });
 
@@ -191,12 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update breadcrumbs
         renderBreadcrumbs();
+        // Update terminal prompt path display
+        updateTerminalPromptPath();
 
         if (res.success) {
             renderGrid(res.items);
-            if(document.getElementById('dashboardView').classList.contains('active')){
-                dashTotalFiles.innerText = res.items.length;
-            }
         } else {
             fileGrid.innerHTML = `<div class="empty-state text-red">Error: ${res.error}</div>`;
         }
@@ -423,18 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Custom Cursor logic
+    // Cursor position update — simplified by using a measuring span
     function updateTerminalCursor() {
-        if (!terminalInput) return;
-        const val = terminalInput.value;
-        terminalInputLine.setAttribute('data-text', val);
-        
-        // Very basic character width calculation for monospace font (approximate)
-        const charWidth = 9; // Approx width of 15px consolas char
-        const promptWidth = terminalPrompt.getBoundingClientRect().width;
-        
-        const cursorPos = promptWidth + (val.length * charWidth) + 8; // 8px margin
-        terminalCursor.style.left = `${cursorPos}px`;
+        if (!terminalInput || !terminalCursor) return;
+        // Cursor visibility follows input focus
+        terminalCursor.style.display = 'inline-block';
     }
 
     if (terminalInput) {
@@ -488,10 +521,21 @@ document.addEventListener('DOMContentLoaded', () => {
         terminalBody.scrollTop = terminalBody.scrollHeight;
     }
 
+    function getTerminalPathDisplay() {
+        return currentPath === '/' ? '~' : `~${currentPath}`;
+    }
+
+    function updateTerminalPromptPath() {
+        const promptPathEl = document.querySelector('.terminal-input-line .prompt-path');
+        if (promptPathEl) {
+            promptPathEl.textContent = getTerminalPathDisplay();
+        }
+    }
+
     function printCommandPrompt(cmd) {
         const line = document.createElement('div');
         line.className = `output-line`;
-        line.innerHTML = `<span class="prompt-user">root@vfs</span> <span class="prompt-path">~</span> <span class="prompt-arrow">❯</span> <span style="color: #e2e8f0;">${cmd.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>`;
+        line.innerHTML = `<span class="prompt-user">root@vfs</span> <span class="prompt-path">${getTerminalPathDisplay()}</span> <span class="prompt-arrow">❯</span> <span style="color: #e2e8f0;">${cmd.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>`;
         terminalOutput.appendChild(line);
         terminalBody.scrollTop = terminalBody.scrollHeight;
     }
@@ -513,12 +557,71 @@ document.addEventListener('DOMContentLoaded', () => {
                     printToTerminal('  write <file> <data> - Write text to file');
                     printToTerminal('  rm <name>        - Delete file or folder');
                     printToTerminal('  rename <old> <new> - Rename an item');
+                    printToTerminal('  cd <dir>         - Change directory');
+                    printToTerminal('  cd ..            - Go up one directory');
+                    printToTerminal('  pwd              - Print current directory');
+                    printToTerminal('  stat <name>      - Show item metadata');
                     printToTerminal('  switch <fs>      - Switch FS (fat32, ntfs, ext4)');
+                    printToTerminal('  userrole <role>  - Set NTFS role (admin, editor, viewer)');
                     printToTerminal('  clear            - Clear terminal screen');
                     break;
 
                 case 'clear':
                     terminalOutput.innerHTML = '';
+                    break;
+
+                case 'pwd':
+                    printToTerminal(currentPath, 'info');
+                    break;
+
+                case 'cd':
+                    if (!arg1) {
+                        currentPath = '/';
+                        printToTerminal('Changed to root directory', 'success');
+                        updateTerminalPromptPath();
+                    } else if (arg1 === '..') {
+                        if (currentPath === '/') {
+                            printToTerminal('Already at root directory', 'info');
+                        } else {
+                            const parts = currentPath.split('/').filter(p => p);
+                            parts.pop();
+                            currentPath = parts.length === 0 ? '/' : '/' + parts.join('/');
+                            printToTerminal(`Changed to ${currentPath}`, 'success');
+                            updateTerminalPromptPath();
+                        }
+                    } else {
+                        const cdTarget = arg1.startsWith('/') ? arg1 : (currentPath === '/' ? `/${arg1}` : `${currentPath}/${arg1}`);
+                        const cdCheck = await fetchAPI(`/list?path=${encodeURIComponent(cdTarget)}`);
+                        if (cdCheck.success) {
+                            currentPath = cdTarget;
+                            printToTerminal(`Changed to ${currentPath}`, 'success');
+                            updateTerminalPromptPath();
+                        } else {
+                            printToTerminal(`cd: ${arg1}: No such directory`, 'error');
+                        }
+                    }
+                    break;
+
+                case 'stat':
+                    if (!arg1) { printToTerminal('Usage: stat <name>', 'error'); break; }
+                    const statPath = currentPath === '/' ? `/${arg1}` : `${currentPath}/${arg1}`;
+                    const statListRes = await fetchAPI(`/list?path=${encodeURIComponent(currentPath)}`);
+                    if (statListRes.success) {
+                        const statItem = statListRes.items.find(i => i.name === arg1);
+                        if (statItem) {
+                            printToTerminal(`  Name:       ${statItem.name}`, 'info');
+                            printToTerminal(`  Type:       ${statItem.type}`, 'info');
+                            printToTerminal(`  Size:       ${statItem.size || 0} bytes`, 'info');
+                            printToTerminal(`  Created:    ${new Date(statItem.createdAt).toLocaleString()}`, 'info');
+                            printToTerminal(`  Modified:   ${new Date(statItem.modifiedAt).toLocaleString()}`, 'info');
+                            printToTerminal(`  FS:         ${currentFS}`, 'info');
+                            printToTerminal(`  Path:       ${statPath}`, 'info');
+                        } else {
+                            printToTerminal(`stat: '${arg1}' not found`, 'error');
+                        }
+                    } else {
+                        printToTerminal(`stat: ${statListRes.error}`, 'error');
+                    }
                     break;
 
                 case 'switch':
@@ -591,10 +694,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!arg1) { printToTerminal('Usage: rm <name>', 'error'); break; }
                     const rmPath = currentPath === '/' ? `/${arg1}` : `${currentPath}/${arg1}`;
                     let rmRes = await fetchAPI('/delete', 'DELETE', { path: rmPath, type: 'file' });
-                    if (!rmRes.success && rmRes.error.includes('Target is not a file')) {
+                    if (!rmRes.success && (rmRes.error || '').includes('Target is not a file')) {
                         rmRes = await fetchAPI('/delete', 'DELETE', { path: rmPath, type: 'folder' });
                     }
-                    printToTerminal(rmRes.success ? rmRes.message : rmRes.error, rmRes.success ? 'success' : 'error');
+                    printToTerminal(rmRes.success ? rmRes.message : (rmRes.error || 'Unknown error'), rmRes.success ? 'success' : 'error');
                     break;
 
                 case 'rename':
@@ -602,6 +705,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     const oldPath = currentPath === '/' ? `/${arg1}` : `${currentPath}/${arg1}`;
                     const renRes = await fetchAPI('/rename', 'PUT', { path: oldPath, newName: parts[2] });
                     printToTerminal(renRes.success ? renRes.message : renRes.error, renRes.success ? 'success' : 'error');
+                    break;
+
+                case 'userrole':
+                    if (!arg1) {
+                        printToTerminal('Usage: userrole <role>', 'error');
+                        printToTerminal('  Roles: admin, editor, viewer', 'info');
+                        printToTerminal('  (Only affects NTFS permission checks)', 'info');
+                        break;
+                    }
+                    const validRoles = ['admin', 'editor', 'viewer'];
+                    if (!validRoles.includes(arg1.toLowerCase())) {
+                        printToTerminal(`Invalid role: ${arg1}. Use: admin, editor, viewer`, 'error');
+                        break;
+                    }
+                    const roleRes = await fetchAPI('/userrole', 'POST', { role: arg1.toLowerCase() });
+                    printToTerminal(roleRes.success ? roleRes.message : roleRes.error, roleRes.success ? 'success' : 'error');
                     break;
 
                 default:
@@ -614,6 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (['mkdir', 'touch', 'write', 'rm', 'rename'].includes(cmd)) {
             fetchLogs();
+            updateDashboardStats();
             if (document.getElementById('explorerView').classList.contains('active')) {
                 refreshExplorer();
             }
@@ -1174,6 +1294,122 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchLogs();
         showToast('warning', 'Simulator has been reset!');
     });
+
+    // ==========================================
+    // 9. DISK VISUALIZER (Standalone Module)
+    // ==========================================
+    const diskVizToggle = document.getElementById('diskVizToggle');
+    const diskVizOverlay = document.getElementById('diskVizOverlay');
+    const diskVizClose = document.getElementById('diskVizClose');
+    const diskVizRefresh = document.getElementById('diskVizRefresh');
+    const diskVizGrid = document.getElementById('diskVizGrid');
+    const diskVizFileList = document.getElementById('diskVizFileList');
+    const diskVizFSBadge = document.getElementById('diskVizFSBadge');
+    const diskVizStats = document.getElementById('diskVizStats');
+
+    const DISK_TOTAL_BLOCKS = 100;
+    const FS_BLOCK_COLORS = {
+        'FAT32': 'fat32',
+        'NTFS':  'ntfs',
+        'EXT4':  'ext4'
+    };
+
+    // Toggle open
+    if (diskVizToggle) {
+        diskVizToggle.addEventListener('click', () => {
+            diskVizOverlay.classList.add('active');
+            loadDiskVisualization();
+        });
+    }
+
+    // Close
+    if (diskVizClose) {
+        diskVizClose.addEventListener('click', () => {
+            diskVizOverlay.classList.remove('active');
+        });
+    }
+
+    // Close on overlay background click
+    if (diskVizOverlay) {
+        diskVizOverlay.addEventListener('click', (e) => {
+            if (e.target === diskVizOverlay) {
+                diskVizOverlay.classList.remove('active');
+            }
+        });
+    }
+
+    // Refresh
+    if (diskVizRefresh) {
+        diskVizRefresh.addEventListener('click', loadDiskVisualization);
+    }
+
+    async function loadDiskVisualization() {
+        try {
+            const res = await fetchAPI('/blocks');
+            if (!res.success) {
+                diskVizGrid.innerHTML = '<div class="disk-viz-empty">No active file system</div>';
+                return;
+            }
+
+            const fsType = res.fsType.toUpperCase();
+            const colorClass = FS_BLOCK_COLORS[fsType] || 'fat32';
+            const files = res.files || [];
+
+            // Build block occupancy map: blockNumber -> fileName
+            const blockMap = {};
+            files.forEach(file => {
+                (file.blocks || []).forEach(blk => {
+                    blockMap[blk] = file.name;
+                });
+            });
+
+            const usedCount = Object.keys(blockMap).length;
+
+            // Update FS badge
+            diskVizFSBadge.textContent = fsType;
+            diskVizFSBadge.className = `disk-viz-fs-badge ${colorClass}`;
+
+            // Update stats
+            diskVizStats.textContent = `${usedCount} / ${DISK_TOTAL_BLOCKS} blocks used`;
+
+            // Render grid (blocks 1–100)
+            diskVizGrid.innerHTML = '';
+            for (let i = 1; i <= DISK_TOTAL_BLOCKS; i++) {
+                const cell = document.createElement('div');
+                const isUsed = blockMap[i] !== undefined;
+
+                cell.className = `disk-block-cell ${isUsed ? `used-${colorClass}` : 'free'}`;
+                cell.textContent = i;
+                cell.title = isUsed ? `Block ${i}: ${blockMap[i]}` : `Block ${i}: free`;
+                cell.style.animationDelay = `${i * 0.008}s`;
+
+                diskVizGrid.appendChild(cell);
+            }
+
+            // Render file list
+            diskVizFileList.innerHTML = '';
+            if (files.length === 0) {
+                diskVizFileList.innerHTML = '<div class="disk-viz-empty">No files on disk. Create some files first!</div>';
+            } else {
+                files.forEach(file => {
+                    const row = document.createElement('div');
+                    row.className = 'disk-viz-file-row';
+                    const blockStr = (file.blocks || []).join(', ');
+                    row.innerHTML = `
+                        <span class="dvf-color ${colorClass}"></span>
+                        <span class="dvf-name">${file.name}</span>
+                        <span class="dvf-blocks">[${blockStr}]</span>
+                        <span class="dvf-size">${file.size}B</span>
+                    `;
+                    diskVizFileList.appendChild(row);
+                });
+            }
+
+        } catch (err) {
+            console.error('Disk Visualizer error:', err);
+            diskVizGrid.innerHTML = '<div class="disk-viz-empty">Failed to load block data</div>';
+        }
+    }
 
     // ==========================================
 
