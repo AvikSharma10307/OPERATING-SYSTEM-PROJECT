@@ -2,8 +2,10 @@
   "name": "4may-pro",
   "version": "1.0.0",
   "description": "",
+  "_comment": "Added minimal metadata comment for commit tracking",
   "main": "script.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
