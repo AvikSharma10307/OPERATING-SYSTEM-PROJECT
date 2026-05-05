@@ -2,6 +2,7 @@ const FAT32 = require('./fs-types/FAT32');
 const NTFS = require('./fs-types/NTFS');
 const EXT4 = require('./fs-types/EXT4');
 
+// VFSManager coordinates file system operations and logging
 class VFSManager {
     constructor() {
         // Instantiate the core engines. They persist in memory.
@@ -12,6 +13,49 @@ class VFSManager {
         };
         this.activeFS = null;
         this.logs = []; // VFS Panel Logs
+
+        // Performance simulation: artificial latency per file system type (ms)
+        this.latencyMap = {
+            'FAT32': 300,
+            'NTFS':  150,
+            'EXT4':   50
+        };
+    }
+
+    /**
+     * Returns the simulated latency in ms for the currently active file system.
+     */
+    _simulateLatency() {
+        if (!this.activeFS) return 0;
+        return this.latencyMap[this.activeFS.name] || 0;
+    }
+
+    /**
+     * Wraps a synchronous operation with an artificial delay to simulate
+     * real-world file system performance differences.
+     * The original operation runs AFTER the delay completes.
+     */
+    async _performWithDelay(operationName, operationFn) {
+        const delay = this._simulateLatency();
+        const startTime = Date.now();
+
+        // Non-blocking delay using Promise + setTimeout
+        if (delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // Execute the original operation (untouched logic)
+        const result = operationFn();
+        const elapsed = Date.now() - startTime;
+
+        // Attach performance metadata to the result
+        result._perf = {
+            fsType: this.activeFS ? this.activeFS.name : 'NONE',
+            simulatedDelayMs: delay,
+            actualElapsedMs: elapsed
+        };
+
+        return this._logOperation(operationName, result);
     }
 
     /**
@@ -70,22 +114,22 @@ class VFSManager {
         return this._logOperation('createFile', this.activeFS.createFile(path));
     }
 
-    deleteFile(path) {
+    async deleteFile(path) {
         const check = this._checkActive();
         if (!check.success) return this._logOperation('deleteFile', check);
-        return this._logOperation('deleteFile', this.activeFS.deleteFile(path));
+        return this._performWithDelay('deleteFile', () => this.activeFS.deleteFile(path));
     }
 
-    readFile(path) {
+    async readFile(path) {
         const check = this._checkActive();
         if (!check.success) return this._logOperation('readFile', check);
-        return this._logOperation('readFile', this.activeFS.readFile(path));
+        return this._performWithDelay('readFile', () => this.activeFS.readFile(path));
     }
 
-    writeFile(path, data) {
+    async writeFile(path, data) {
         const check = this._checkActive();
         if (!check.success) return this._logOperation('writeFile', check);
-        return this._logOperation('writeFile', this.activeFS.writeFile(path, data));
+        return this._performWithDelay('writeFile', () => this.activeFS.writeFile(path, data));
     }
 
     renameFile(oldPath, newName) {
@@ -100,10 +144,10 @@ class VFSManager {
         return this._logOperation('createFolder', this.activeFS.createFolder(path));
     }
 
-    deleteFolder(path) {
+    async deleteFolder(path) {
         const check = this._checkActive();
         if (!check.success) return this._logOperation('deleteFolder', check);
-        return this._logOperation('deleteFolder', this.activeFS.deleteFolder(path));
+        return this._performWithDelay('deleteFolder', () => this.activeFS.deleteFolder(path));
     }
 
     listItems(path = '/') {
