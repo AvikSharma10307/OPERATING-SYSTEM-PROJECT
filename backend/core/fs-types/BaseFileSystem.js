@@ -1,3 +1,6 @@
+/**
+ * BaseFileSystem provides common file operations for all file system types.
+ */
 class BaseFileSystem {
     constructor(name) {
         this.name = name;

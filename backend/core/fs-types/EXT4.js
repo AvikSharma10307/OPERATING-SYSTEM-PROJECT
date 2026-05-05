@@ -1,11 +1,14 @@
 const BaseFileSystem = require('./BaseFileSystem');
+const BlockAllocator = require('../BlockAllocator');
 
+// EXT4-specific behavior with inode simulation
 class EXT4 extends BaseFileSystem {
     constructor() {
         super('EXT4');
         // Simulate inode table for O(1) lookups
         this.inodeTable = new Map();
         this.nextInode = 1;
+        this.maxInodes = 50; // EXT4 simulated inode limit
         
         // Add root folder to inode table
         this.root.inode = this.nextInode++;
@@ -13,6 +16,14 @@ class EXT4 extends BaseFileSystem {
     }
 
     createFile(path) {
+        // EXT4 inode limit check
+        if (this.inodeTable.size >= this.maxInodes) {
+            return { 
+                success: false, 
+                error: `EXT4 Error: Inode limit reached (${this.maxInodes}/${this.maxInodes}). Cannot create more files. Delete existing files to free inodes.` 
+            };
+        }
+
         const result = super.createFile(path);
         if (result.success) {
             // Get the newly created file and assign an inode
@@ -21,11 +32,30 @@ class EXT4 extends BaseFileSystem {
             
             file.inode = this.nextInode++;
             this.inodeTable.set(file.inode, file);
+            file.blocks = BlockAllocator.allocateBlocks(1, 'EXT4');
+        }
+        return result;
+    }
+
+    writeFile(path, data) {
+        const result = super.writeFile(path, data);
+        if (result.success) {
+            const resolved = this._resolvePath(path);
+            const file = resolved.parent.children[resolved.targetName];
+            file.blocks = BlockAllocator.allocateBlocks(data.length, 'EXT4');
         }
         return result;
     }
 
     createFolder(path) {
+        // EXT4 inode limit check
+        if (this.inodeTable.size >= this.maxInodes) {
+            return { 
+                success: false, 
+                error: `EXT4 Error: Inode limit reached (${this.maxInodes}/${this.maxInodes}). Cannot create more folders. Delete existing items to free inodes.` 
+            };
+        }
+
         const result = super.createFolder(path);
         if (result.success) {
             const resolved = this._resolvePath(path);
@@ -98,7 +128,9 @@ class EXT4 extends BaseFileSystem {
         return { 
             success: true, 
             totalInodesUsed: this.inodeTable.size,
-            nextAvailableInode: this.nextInode
+            maxInodes: this.maxInodes,
+            nextAvailableInode: this.nextInode,
+            remaining: this.maxInodes - this.inodeTable.size
         };
     }
 }

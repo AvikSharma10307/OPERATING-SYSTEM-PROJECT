@@ -1,9 +1,22 @@
 const BaseFileSystem = require('./BaseFileSystem');
+const BlockAllocator = require('../BlockAllocator');
 
+// FAT32-specific behavior and file size simulation
 class FAT32 extends BaseFileSystem {
     constructor() {
         super('FAT32');
         this.maxFileSize = 4 * 1024 * 1024 * 1024; // 4GB in bytes
+    }
+
+    createFile(path) {
+        const result = super.createFile(path);
+        if (result.success) {
+            // Attach initial block allocation (empty file = 1 block minimum)
+            const resolved = this._resolvePath(path);
+            const file = resolved.parent.children[resolved.targetName];
+            file.blocks = BlockAllocator.allocateBlocks(1, 'FAT32');
+        }
+        return result;
     }
 
     writeFile(path, data) {
@@ -23,7 +36,16 @@ class FAT32 extends BaseFileSystem {
         }
 
         // Call the parent class's writeFile if within limits
-        return super.writeFile(path, data);
+        const result = super.writeFile(path, data);
+
+        // Re-allocate blocks based on new data size
+        if (result.success) {
+            const resolved = this._resolvePath(path);
+            const file = resolved.parent.children[resolved.targetName];
+            file.blocks = BlockAllocator.allocateBlocks(data.length, 'FAT32');
+        }
+
+        return result;
     }
 }
 
