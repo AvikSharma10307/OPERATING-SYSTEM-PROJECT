@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body class="dark-theme">
+    <!-- Application container for the VFS simulator UI -->
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
@@ -392,6 +393,51 @@
             <div class="modal-actions">
                 <button class="btn-cancel" id="modalCancel">Cancel</button>
                 <button class="btn-confirm" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================== -->
+    <!-- DISK VISUALIZER (Standalone)   -->
+    <!-- ============================== -->
+    <button class="disk-viz-toggle" id="diskVizToggle" title="Show Disk View">
+        <i class="fa-solid fa-cube"></i>
+    </button>
+
+    <div class="disk-viz-overlay" id="diskVizOverlay">
+        <div class="disk-viz-panel glass-panel">
+            <div class="disk-viz-header">
+                <div class="disk-viz-title">
+                    <i class="fa-solid fa-cube"></i>
+                    <h2>Disk Block Visualizer</h2>
+                </div>
+                <div class="disk-viz-controls">
+                    <button class="disk-viz-refresh" id="diskVizRefresh" title="Refresh">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button class="disk-viz-close" id="diskVizClose" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="disk-viz-info-bar">
+                <div class="disk-viz-fs-badge" id="diskVizFSBadge">FAT32</div>
+                <div class="disk-viz-legend">
+                    <span class="legend-item"><span class="legend-block used"></span> Used</span>
+                    <span class="legend-item"><span class="legend-block free"></span> Free</span>
+                </div>
+                <div class="disk-viz-stats" id="diskVizStats">0 / 100 blocks used</div>
+            </div>
+
+            <div class="disk-viz-grid-container">
+                <div class="disk-viz-grid" id="diskVizGrid">
+                    <!-- 100 blocks rendered by JS -->
+                </div>
+            </div>
+
+            <div class="disk-viz-file-list" id="diskVizFileList">
+                <!-- File-to-block mapping rendered by JS -->
             </div>
         </div>
     </div>
