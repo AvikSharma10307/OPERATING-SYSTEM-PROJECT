@@ -1,4 +1,5 @@
 /* Custom Properties & Theme Variables */
+/* Global theme variables and design tokens */
 :root {
     --bg-dark: #0a0a0c;
     --bg-panel: rgba(20, 20, 25, 0.6);
@@ -88,14 +89,6 @@ body.light-theme::before {
     display: flex;
     height: 100vh;
     width: 100vw;
-}
-
-.view-section {
-    display: none;
-    height: 100%;
-}
-.view-section.active {
-    display: block;
 }
 
 /* Sidebar Navigation */
@@ -204,6 +197,23 @@ body.light-theme .sidebar {
     font-family: var(--font-main);
     font-weight: bold;
     outline: none;
+    cursor: pointer;
+}
+
+.fs-selector select option {
+    background: #1a1a2e;
+    color: #f0f0f0;
+}
+
+body.light-theme .fs-selector select {
+    background: rgba(255,255,255,0.8);
+    color: #0077ff;
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .fs-selector select option {
+    background: #ffffff;
+    color: #1a1a2e;
 }
 
 /* Main Content Area */
@@ -388,6 +398,9 @@ body.light-theme .topbar { background: rgba(255, 255, 255, 0.4); }
     font-size: 14px; color: white; flex-shrink: 0;
 }
 .bg-blue { background: rgba(41, 121, 255, 0.2); color: var(--color-blue); }
+.bg-red { background: rgba(255, 23, 68, 0.2); color: var(--color-red); }
+.bg-green { background: rgba(0, 230, 118, 0.2); color: var(--color-green); }
+.bg-yellow { background: rgba(255, 234, 0, 0.2); color: var(--color-yellow); }
 .activity-details p { font-size: 14px; color: var(--text-primary); margin-bottom: 4px; }
 
 /* -------------------------------------- */
@@ -870,37 +883,26 @@ body.light-theme .topbar { background: rgba(255, 255, 255, 0.4); }
 .terminal-input {
     background: transparent;
     border: none;
-    color: transparent; /* Hide actual input text */
+    color: #e2e8f0;
     font-family: 'Consolas', 'Courier New', monospace;
     font-size: 15px;
     flex: 1;
     outline: none;
-    caret-color: transparent; /* Hide native cursor */
+    caret-color: #00f2ff;
     z-index: 2;
     position: relative;
 }
 
-/* Custom animated cursor */
-.terminal-input-line::after {
-    content: attr(data-text); /* We'll mirror input value here via JS */
-    position: absolute;
-    left: calc(100px); /* Will be calculated via JS based on prompt width */
-    color: #e2e8f0;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 15px;
-    pointer-events: none;
-    white-space: pre;
-    z-index: 1;
-}
-
+/* Blinking block cursor shown at end of input line */
 .cursor {
     display: inline-block;
     width: 8px;
     height: 18px;
     background-color: #00f2ff;
     animation: blink 1s step-end infinite;
-    position: absolute;
-    /* Left position updated dynamically by JS */
+    vertical-align: middle;
+    margin-left: 2px;
+    flex-shrink: 0;
 }
 
 @keyframes blink {
@@ -1637,6 +1639,25 @@ body.light-theme .toast {
     color: #1a1a2e;
 }
 
+body.light-theme .modal input {
+    background: rgba(0, 0, 0, 0.05);
+    color: #1a1a2e;
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .context-menu {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+body.light-theme .context-menu li:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .search-box input {
+    background: rgba(0, 0, 0, 0.05);
+    color: #1a1a2e;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .analytics-top-row { grid-template-columns: repeat(2, 1fr); }
@@ -1662,5 +1683,364 @@ body.light-theme .toast {
     .analytics-top-row { grid-template-columns: 1fr; }
     .dashboard-content { padding: 16px; }
     .stats-grid { grid-template-columns: 1fr; }
+}
+
+/* ====================================================== */
+/* DISK VISUALIZER — Standalone Floating Component        */
+/* ====================================================== */
+
+/* Floating Toggle Button */
+.disk-viz-toggle {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 900;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 242, 255, 0.4);
+    background: rgba(10, 10, 20, 0.85);
+    backdrop-filter: blur(12px);
+    color: var(--neon-cyan);
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 24px rgba(0, 242, 255, 0.2), inset 0 0 12px rgba(0, 242, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.disk-viz-toggle:hover {
+    transform: scale(1.12) rotate(15deg);
+    box-shadow: 0 6px 32px rgba(0, 242, 255, 0.4);
+    border-color: var(--neon-cyan);
+}
+
+body.light-theme .disk-viz-toggle {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 119, 255, 0.4);
+    color: #0077ff;
+}
+
+/* Overlay */
+.disk-viz-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 3000;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.35s ease;
+}
+
+.disk-viz-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Main Panel */
+.disk-viz-panel {
+    width: 90vw;
+    max-width: 820px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 0;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 242, 255, 0.15);
+    transform: translateY(30px) scale(0.95);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.disk-viz-overlay.active .disk-viz-panel {
+    transform: translateY(0) scale(1);
+}
+
+/* Header */
+.disk-viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.disk-viz-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.disk-viz-title i {
+    font-size: 22px;
+    color: var(--neon-cyan);
+    filter: drop-shadow(0 0 6px var(--neon-cyan-glow));
+}
+
+.disk-viz-title h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.disk-viz-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.disk-viz-refresh,
+.disk-viz-close {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border-glass);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.disk-viz-refresh:hover {
+    color: var(--neon-cyan);
+    border-color: rgba(0, 242, 255, 0.3);
+    background: rgba(0, 242, 255, 0.08);
+}
+
+.disk-viz-close:hover {
+    color: var(--color-red);
+    border-color: rgba(255, 23, 68, 0.3);
+    background: rgba(255, 23, 68, 0.08);
+}
+
+/* Info Bar */
+.disk-viz-info-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 14px 28px;
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid var(--border-glass);
+    flex-wrap: wrap;
+}
+
+.disk-viz-fs-badge {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* FS-specific badge colors */
+.disk-viz-fs-badge.fat32 {
+    background: rgba(41, 121, 255, 0.15);
+    color: #2979ff;
+    border: 1px solid rgba(41, 121, 255, 0.3);
+}
+.disk-viz-fs-badge.ntfs {
+    background: rgba(0, 230, 118, 0.15);
+    color: #00e676;
+    border: 1px solid rgba(0, 230, 118, 0.3);
+}
+.disk-viz-fs-badge.ext4 {
+    background: rgba(188, 19, 254, 0.15);
+    color: #bc13fe;
+    border: 1px solid rgba(188, 19, 254, 0.3);
+}
+
+.disk-viz-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-block {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.legend-block.used {
+    background: var(--neon-cyan);
+    box-shadow: 0 0 6px var(--neon-cyan-glow);
+}
+
+.legend-block.free {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.disk-viz-stats {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Block Grid */
+.disk-viz-grid-container {
+    padding: 24px 28px;
+}
+
+.disk-viz-grid {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 4px;
+}
+
+.disk-block-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 600;
+    color: transparent;
+    transition: all 0.25s ease;
+    cursor: default;
+    position: relative;
+}
+
+/* Free block */
+.disk-block-cell.free {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Used block — FS color variants */
+.disk-block-cell.used-fat32 {
+    background: rgba(41, 121, 255, 0.35);
+    border: 1px solid rgba(41, 121, 255, 0.6);
+    box-shadow: 0 0 6px rgba(41, 121, 255, 0.2);
+}
+
+.disk-block-cell.used-ntfs {
+    background: rgba(0, 230, 118, 0.35);
+    border: 1px solid rgba(0, 230, 118, 0.6);
+    box-shadow: 0 0 6px rgba(0, 230, 118, 0.2);
+}
+
+.disk-block-cell.used-ext4 {
+    background: rgba(188, 19, 254, 0.35);
+    border: 1px solid rgba(188, 19, 254, 0.6);
+    box-shadow: 0 0 6px rgba(188, 19, 254, 0.2);
+}
+
+.disk-block-cell:hover {
+    transform: scale(1.35);
+    z-index: 2;
+    color: white;
+    font-size: 9px;
+}
+
+.disk-block-cell.free:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.disk-block-cell.used-fat32:hover {
+    background: rgba(41, 121, 255, 0.6);
+    box-shadow: 0 0 14px rgba(41, 121, 255, 0.5);
+}
+.disk-block-cell.used-ntfs:hover {
+    background: rgba(0, 230, 118, 0.6);
+    box-shadow: 0 0 14px rgba(0, 230, 118, 0.5);
+}
+.disk-block-cell.used-ext4:hover {
+    background: rgba(188, 19, 254, 0.6);
+    box-shadow: 0 0 14px rgba(188, 19, 254, 0.5);
+}
+
+/* Appear animation */
+.disk-block-cell {
+    animation: blockAppear 0.3s ease forwards;
+    opacity: 0;
+}
+@keyframes blockAppear {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* File List */
+.disk-viz-file-list {
+    padding: 16px 28px 24px;
+    border-top: 1px solid var(--border-glass);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.disk-viz-file-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-glass);
+    transition: background 0.2s;
+}
+
+.disk-viz-file-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.dvf-color {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.dvf-color.fat32 { background: #2979ff; }
+.dvf-color.ntfs  { background: #00e676; }
+.dvf-color.ext4  { background: #bc13fe; }
+
+.dvf-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dvf-blocks {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.dvf-size {
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: right;
+}
+
+.disk-viz-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 14px;
 }
 
